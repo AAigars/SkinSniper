@@ -1,6 +1,7 @@
 ﻿using SkinSniper.Config;
 using SkinSniper.Services.Buff;
 using SkinSniper.Services.Skinport;
+using SkinSniper.Services.Telegram;
 using System.Diagnostics;
 using System.Reflection;
 
@@ -10,14 +11,16 @@ namespace SkinSniper
     {
         private static BuffClient? _buff;
         private static SkinportClient? _skinport;
+        private static TelegramClient? _telegram;
 
         static void Main(string[] args)
         {
             SetupTrace();
             ConfigHandler.Load();
 
+            _telegram = new TelegramClient();
             _buff = new BuffClient();
-            _skinport = new SkinportClient(_buff);
+            _skinport = new SkinportClient(_telegram, _buff);
 
             Console.ReadLine();
         }

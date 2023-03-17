@@ -4,12 +4,15 @@ using SkinSniper.Services.Skinport.Http;
 using SkinSniper.Services.Skinport.Http.Entities;
 using SkinSniper.Services.Skinport.Selenium;
 using SkinSniper.Services.Skinport.Socket;
+using SkinSniper.Services.Telegram;
+using SkinSniper.Services.Telegram.Entities;
 using System.Diagnostics;
 
 namespace SkinSniper.Services.Skinport
 {
     internal class SkinportClient
     {
+        private readonly TelegramClient _telegramClient;
         private readonly BuffClient _buffClient;
         private readonly string _baseUrl;
         private readonly string _userAgent;
@@ -19,16 +22,18 @@ namespace SkinSniper.Services.Skinport
         private SeleniumHandler _seleniumHandler;
 
         public SkinportClient(
+            TelegramClient telegramClient,
             BuffClient buffClient,
             string baseUrl = "https://skinport.com/", 
             string userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36")
         {
+            _telegramClient = telegramClient;
             _buffClient = buffClient;
             _baseUrl = baseUrl;
             _userAgent = userAgent;
 
             // instantiate selenium handler
-            _seleniumHandler = new SeleniumHandler(baseUrl, userAgent, ConfigHandler.Get().Username, ConfigHandler.Get().Password);
+            _seleniumHandler = new SeleniumHandler(baseUrl, userAgent, ConfigHandler.Get().Skinport.Username, ConfigHandler.Get().Skinport.Password);
             _seleniumHandler.LoggedIn += OnLoggedIn;
             _seleniumHandler.Start();
         }
@@ -82,39 +87,70 @@ namespace SkinSniper.Services.Skinport
             var profit = ((buffPrice * 97.5f) / 100f) - skinportPrice;
             var threshold = (skinportPrice * 15f) / 100f;
 
+            // measure execution time
+            var watch = Stopwatch.StartNew();
+            var sniped = false;
+
             // check threshold
             if (profit > threshold)
             {
-                // measure execution time
-                var watch = Stopwatch.StartNew();
-
-                // add to basket & generate google captcha token
-                var basket = _httpHandler.AddToBasket(item);
-                var token = _seleniumHandler.GenerateTokenAsync();
-                await Task.WhenAll(basket, token);
-
-                // check if its added to basket
-                if (basket.Result != null && basket.Result.Success)
+                if (ConfigHandler.Get().Status)
                 {
-                    // order the item
-                    var order = await _httpHandler.CreateOrder(item, token.Result);
-                    watch.Stop();
+                    // add to basket & generate google captcha token
+                    var basket = _httpHandler.AddToBasket(item);
+                    var token = _seleniumHandler.GenerateTokenAsync();
+                    await Task.WhenAll(basket, token);
 
-                    // log the result
-                    if (order != null && order.Success)
+                    // check if its added to basket
+                    if (basket.Result != null && basket.Result.Success)
                     {
-                        Trace.WriteLine($"(Sniped): {watch.ElapsedMilliseconds}ms");
+                        // order the item
+                        var order = await _httpHandler.CreateOrder(item, token.Result);
+                        watch.Stop();
+
+                        // log the result
+                        if (order != null && order.Success)
+                        {
+                            sniped = true;
+                            Trace.WriteLine($"(Sniped): {watch.ElapsedMilliseconds}ms");
+                        }
+                        else if (order != null)
+                        {
+                            Trace.WriteLine($"(Failed): {order.Message} = {watch.ElapsedMilliseconds}ms");
+                        }
                     }
-                    else if (order != null)
+                    else if (basket.Result != null && basket.Result.Message == "MAINTENANCE")
                     {
-                        Trace.WriteLine($"(Failed): {order.Message} = {watch.ElapsedMilliseconds}ms");
+                        watch.Stop();
+                        Trace.WriteLine($"(Retrying): {basket.Result.Message} = {watch.ElapsedMilliseconds}ms");
+
+                        Thread.Sleep(1000);
+                        OnItemReceived(sender, item);
+                    }
+                    else if (basket.Result != null)
+                    {
+                        watch.Stop();
+                        Trace.WriteLine($"(Failed): {basket.Result.Message} = {watch.ElapsedMilliseconds}ms");
+                    }
+                    else
+                    {
+                        watch.Stop();
                     }
                 }
-                else if (basket.Result != null)
-                {
-                    watch.Stop();
-                    Trace.WriteLine($"(Failed): {basket.Result.Message} = {watch.ElapsedMilliseconds}ms");
-                }
+
+                // send to telegram
+                var telegramItem = new TelegramItem();
+                telegramItem.ListingPrice = skinportPrice;
+                telegramItem.BuffPrice = buffPrice;
+                telegramItem.Profit = profit;
+                telegramItem.Sniped = sniped;
+                telegramItem.TimeTaken = watch.ElapsedMilliseconds;
+
+                _telegramClient.SendItem(item, telegramItem);
+            }
+            else
+            {
+                watch.Stop();
             }
 
             // output data

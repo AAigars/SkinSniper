@@ -24,5 +24,11 @@ namespace SkinSniper.Services.Skinport.Http.Entities
 
         [JsonPropertyName("wear")]
         public double? Float { get; set; }
+
+        [JsonPropertyName("image")]
+        public string Image { get; set; }
+
+        [JsonPropertyName("url")]
+        public string Url { get; set; }
     }
 }

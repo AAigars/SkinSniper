@@ -26,6 +26,14 @@ namespace SkinSniper.Config
             }
         }
 
+        public static void Save()
+        {
+            using (var writer = new StreamWriter("config.json"))
+            {
+                writer.Write(JsonConvert.SerializeObject(_structure, Formatting.Indented));
+            }
+        }
+
         public static ConfigStructure Get()
         {
             if (_structure != null)
