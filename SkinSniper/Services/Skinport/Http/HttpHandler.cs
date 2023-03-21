@@ -11,16 +11,16 @@ namespace SkinSniper.Services.Skinport.Http
 
         public HttpHandler(string baseUrl, string userAgent, string cookie)
         {
-            // disable storing cookies
-            var handler = new HttpClientHandler()
+            var socketHandler = new SocketsHttpHandler()
             {
+                PooledConnectionIdleTimeout = Timeout.InfiniteTimeSpan,
                 UseCookies = false,
                 UseProxy = false,
                 Proxy = null
             };
 
             // instantiate client
-            _client = new HttpClient(handler)
+            _client = new HttpClient(socketHandler)
             {
                 BaseAddress = new Uri($"{baseUrl}api/")
             };
@@ -29,11 +29,10 @@ namespace SkinSniper.Services.Skinport.Http
             _client.DefaultRequestHeaders.Add("Referer", baseUrl);
             _client.DefaultRequestHeaders.Add("User-Agent", userAgent);
             _client.DefaultRequestHeaders.Add("Cookie", cookie);
-            _client.DefaultRequestHeaders.ExpectContinue = false;
 
             // fetch csrf
             _csrf = GetData().Result?.Csrf;
-            Trace.WriteLine($"(Http): {cookie}");
+            Trace.WriteLine($"(Http): {_csrf}");
         }
 
         public async Task<Entities.Profile?> GetProfile()
@@ -53,7 +52,7 @@ namespace SkinSniper.Services.Skinport.Http
             var data = new FormUrlEncodedContent(new[]
             {
                 new KeyValuePair<string, string>("sales[0]", item.SaleId.ToString()),
-                new KeyValuePair<string, string>("g-recaptcha-response", token),
+                new KeyValuePair<string, string>("cf-turnstile-response", token),
                 new KeyValuePair<string, string>("_csrf", _csrf),
             });
 

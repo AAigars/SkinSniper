@@ -61,9 +61,16 @@ namespace SkinSniper.Services.Buff
             }
         }
 
-        public Item GetItem(string name)
+        public Item? GetItem(string name)
         {
-            return _items[name];
+            try
+            {
+                return _items[name];
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public float GetPrice(string category, string name, double? _float, string style)

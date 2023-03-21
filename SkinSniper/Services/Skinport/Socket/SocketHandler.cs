@@ -11,13 +11,14 @@ namespace SkinSniper.Services.Skinport.Socket
         private readonly SocketIO _client;
         public event EventHandler<Item>? ItemReceived;
 
-        public SocketHandler(string baseUrl, string cookie)
+        public SocketHandler(string baseUrl, string userAgent, string cookie)
         {
             _client = new SocketIO(baseUrl, new SocketIOOptions {
                 Transport = TransportProtocol.WebSocket,
                 ExtraHeaders = new Dictionary<string, string>()
                 {
-                    { "Cookie", cookie }
+                    { "Cookie", cookie },
+                    { "User-Agent", userAgent }
                 }
             });
 

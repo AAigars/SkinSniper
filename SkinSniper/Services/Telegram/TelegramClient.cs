@@ -11,6 +11,7 @@ namespace SkinSniper.Services.Telegram
     internal class TelegramClient
     {
         private TelegramBotClient _client;
+        public event EventHandler<object>? TestSkinport;
 
         public TelegramClient()
         {
@@ -78,6 +79,14 @@ namespace SkinSniper.Services.Telegram
                 ConfigHandler.Save();
 
                 await client.SendTextMessageAsync(message.Chat.Id, "❌ Skins will no-longer be sniped automatically.");
+            }
+            else if (args[0] == "/test")
+            {
+                TestSkinport?.Invoke(this, new
+                {
+                    Client = client,
+                    Message = message
+                });
             }
         }
 

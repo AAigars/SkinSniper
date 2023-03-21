@@ -7,6 +7,8 @@ using SkinSniper.Services.Skinport.Socket;
 using SkinSniper.Services.Telegram;
 using SkinSniper.Services.Telegram.Entities;
 using System.Diagnostics;
+using Telegram.Bot;
+using Telegram.Bot.Types;
 
 namespace SkinSniper.Services.Skinport
 {
@@ -43,21 +45,55 @@ namespace SkinSniper.Services.Skinport
             _seleniumHandler.Stop();
         }
 
+        private async void OnTestSkinport(object? sender, object _data)
+        {
+            // get telegram data from anonymous class
+            dynamic data = _data;
+            ITelegramBotClient client = data.Client;
+            Message message = data.Message;
+
+            // execute test
+            var item = new Item()
+            {
+                SaleId = 16643509,
+                SalePrice = 118509
+            };
+
+            // measure execution time
+            var watch = Stopwatch.StartNew();
+
+            // add to basket & generate google captcha token
+            var basket = _httpHandler.AddToBasket(item);
+            var token = _seleniumHandler.GenerateTokenAsync();
+            await Task.WhenAll(basket, token);
+
+            // output test data
+            watch.Stop();
+            await client.SendTextMessageAsync(message.Chat.Id, $"Performing a performance test!\n" +
+                $"- 🛒 Basket: {basket.Result.Success} {(basket.Result.Success ? "" : $"({basket.Result.Message})")}\n" +
+                $"- 🔐 Captcha: {token.Result.Substring(0, 12)}\n" +
+                $"\n" +
+                $"Time Taken: {watch.ElapsedMilliseconds}ms");
+        }
+
         private async void OnLoggedIn(object? sender, string cookie)
         {
             // instantiate http handler
             _httpHandler = new HttpHandler(_baseUrl, _userAgent, cookie);
 
             // instantiate socket handler
-            _socketHandler = new SocketHandler(_baseUrl, cookie);
+            _socketHandler = new SocketHandler(_baseUrl, _userAgent, cookie);
             _socketHandler.ItemReceived += OnItemReceived;
+
+            // assign test command handler
+            _telegramClient.TestSkinport += OnTestSkinport;
 
             // measure execution time
             {
                 var item = new Item()
                 {
-                    SaleId = 15870909,
-                    SalePrice = 2457357
+                    SaleId = 16643509,
+                    SalePrice = 118509
                 };
 
                 // measure execution time
@@ -70,7 +106,7 @@ namespace SkinSniper.Services.Skinport
 
                 // stop watch and output info
                 watch.Stop();
-                Trace.WriteLine($"(Test): {watch.ElapsedMilliseconds}ms = {basket.Result.Success} = {token.Result}");
+                Trace.WriteLine($"(Test): {watch.ElapsedMilliseconds}ms = {basket.Result.Message} = {token.Result}");
             }
         }
 
