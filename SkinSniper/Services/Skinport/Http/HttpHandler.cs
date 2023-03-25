@@ -7,13 +7,12 @@ namespace SkinSniper.Services.Skinport.Http
     internal class HttpHandler
     {
         private readonly HttpClient _client;
-        private string? _csrf;
+        public string? _csrf;
 
         public HttpHandler(string baseUrl, string userAgent, string cookie)
         {
             var socketHandler = new SocketsHttpHandler()
             {
-                PooledConnectionIdleTimeout = Timeout.InfiniteTimeSpan,
                 UseCookies = false,
                 UseProxy = false,
                 Proxy = null
@@ -33,6 +32,17 @@ namespace SkinSniper.Services.Skinport.Http
             // fetch csrf
             _csrf = GetData().Result?.Csrf;
             Trace.WriteLine($"(Http): {_csrf}");
+
+            // fetch csrf every minute
+            new Task(async () =>
+            {
+                var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
+                while (await timer.WaitForNextTickAsync())
+                {
+                    _csrf = GetData().Result?.Csrf;
+                    Trace.WriteLine($"(Http): {_csrf}");
+                }
+            }).Start();
         }
 
         public async Task<Entities.Profile?> GetProfile()
@@ -55,18 +65,15 @@ namespace SkinSniper.Services.Skinport.Http
                 new KeyValuePair<string, string>("cf-turnstile-response", token),
                 new KeyValuePair<string, string>("_csrf", _csrf),
             });
-
-            var watch = Stopwatch.StartNew();
+           
 
             var response = await _client.PostAsync("checkout/create-order", data);
             var json = await response.Content.ReadFromJsonAsync<Entities.Order>();
 
-            watch.Stop();
-            Trace.WriteLine($"(Order): {watch.ElapsedMilliseconds}ms");
             return json;
         }
 
-        public async Task<Entities.Basket?> AddToBasket(Entities.Item item)
+        public async Task<bool> AddToBasket(Entities.Item item)
         {
             var data = new FormUrlEncodedContent(new[]
             {
@@ -75,14 +82,17 @@ namespace SkinSniper.Services.Skinport.Http
                 new KeyValuePair<string, string>("_csrf", _csrf),
             });
 
-            var watch = Stopwatch.StartNew();
+            var request = new HttpRequestMessage(HttpMethod.Post, "cart/add")
+            {
+                Content = data
+            };
 
-            var response = await _client.PostAsync("cart/add", data);
-            var json = await response.Content.ReadFromJsonAsync<Entities.Basket>();
+            var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
 
-            watch.Stop();
-            Trace.WriteLine($"(Basket): {watch.ElapsedMilliseconds}ms");
-            return json;
+            //var response = await _client.PostAsync("cart/add", data);
+            //var json = await response.Content.ReadFromJsonAsync<Entities.Basket>();
+
+            return response.IsSuccessStatusCode;
         }
     }
 }

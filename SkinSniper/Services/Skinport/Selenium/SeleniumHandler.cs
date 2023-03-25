@@ -30,8 +30,7 @@ namespace SkinSniper.Services.Skinport.Selenium
             service.HideCommandPromptWindow = true;
 
             var options = new ChromeOptions();
-            options.AddArgument("--no-sandbox");
-            //options.AddArgument("--headless");
+            //options.AddArgument("--no-sandbox");
             options.AddArgument("--window-size=1280,1080");
             options.AddArgument($"--user-agent={userAgent}");
 
@@ -91,6 +90,7 @@ namespace SkinSniper.Services.Skinport.Selenium
                 {
                     // wait for page to load
                     _driver.Navigate().GoToUrl($"{_baseUrl}signin");
+                    Thread.Sleep(5000);
 
                     // fill login details
                     _driver.FindElement(By.Id("email"), 30).SendKeys(_username);
@@ -131,21 +131,16 @@ namespace SkinSniper.Services.Skinport.Selenium
                     turnstile.remove(element);
                     turnstile.render(element, {
                       action: "checkout",
-                      execution: "execute",
-                      sitekey: "0x4AAAAAAADTS9QyreZcUSn1",
-                      callback: e => window.callback(e)
+                      execution: "render",
+                      "refresh-expired": "auto",
+                      sitekey: "0x4AAAAAAADTS9QyreZcUSn1"
                     });
                 */
-                _javascript.ExecuteScript("const element=document.getElementById(\"cf-turnstile\");turnstile.remove(element),turnstile.render(element,{action:\"checkout\",execution:\"execute\",sitekey:\"0x4AAAAAAADTS9QyreZcUSn1\",callback:e=>window.callback(e)});");
+                _javascript.ExecuteScript("const element=document.getElementById(\"cf-turnstile\");turnstile.remove(element),turnstile.render(element,{action:\"checkout\",execution:\"render\",\"refresh-expired\":\"auto\",sitekey:\"0x4AAAAAAADTS9QyreZcUSn1\"});");
 
                 // invoke logged in event
                 LoggedIn?.Invoke(this, ConfigHandler.Get().Skinport.Cookie);
             }
-        }
-
-        public void Stop()
-        {
-            _driver.Quit();
         }
 
         public Task<string> GenerateTokenAsync()
@@ -158,21 +153,8 @@ namespace SkinSniper.Services.Skinport.Selenium
 
         public string GenerateToken()
         {
-            // simulate user action
-            // - cloudflare prevents token generation after inactivity.
-            _driver.FindElement(By.ClassName("TextField-input"), 10).Click();
-
             // execute cloudflare turnstile to generate a token
-            /*
-                const element = document.getElementById("cf-turnstile");
-                window.callback = arguments[0];
-                turnstile.execute(element); 
-            */
-            var watch = Stopwatch.StartNew();
-            object data = _javascript.ExecuteAsyncScript("const element=document.getElementById(\"cf-turnstile\");window.callback=arguments[0],turnstile.execute(element);");
-            watch.Stop();
-
-            Trace.WriteLine($"(Captcha): {watch.ElapsedMilliseconds}ms");
+            object data = _javascript.ExecuteScript("return turnstile.getResponse(document.getElementById(\"cf-turnstile\"));");
             return (string)data;
         }
     }
