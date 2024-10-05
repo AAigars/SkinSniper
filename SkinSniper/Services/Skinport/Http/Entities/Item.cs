@@ -4,6 +4,13 @@ namespace SkinSniper.Services.Skinport.Http.Entities
 {
     internal class Item
     {
+        internal class Sticker
+        {
+            [JsonPropertyName("name")]
+            public string Name { get; set; }
+            public decimal? Value { get; set; }
+        }
+
         [JsonPropertyName("saleId")]
         public int SaleId { get; set; }
 
@@ -30,5 +37,8 @@ namespace SkinSniper.Services.Skinport.Http.Entities
 
         [JsonPropertyName("url")]
         public string Url { get; set; }
+
+        [JsonPropertyName("stickers")]
+        public List<Sticker>? Stickers { get; set; }
     }
 }

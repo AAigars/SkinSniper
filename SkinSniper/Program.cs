@@ -1,4 +1,5 @@
 ﻿using SkinSniper.Config;
+using SkinSniper.Database;
 using SkinSniper.Services.Buff;
 using SkinSniper.Services.Skinport;
 using SkinSniper.Services.Telegram;
@@ -9,6 +10,8 @@ namespace SkinSniper
 {
     internal class Program
     {
+        private static DatabaseClient _database;
+        private static BuffScraper _scraper;
         private static BuffClient? _buff;
         private static SkinportClient? _skinport;
         private static TelegramClient? _telegram;
@@ -18,8 +21,14 @@ namespace SkinSniper
             SetupTrace();
             ConfigHandler.Load();
 
+            _database = new DatabaseClient();
+
+            //_scraper = new BuffScraper(_database);
+            //_scraper.ScrapeGoods("sticker_tournament12", false);
+            //_scraper.Update();
+
             _telegram = new TelegramClient();
-            _buff = new BuffClient();
+            _buff = new BuffClient(_database);
             _skinport = new SkinportClient(_telegram, _buff);
 
             Console.ReadLine();

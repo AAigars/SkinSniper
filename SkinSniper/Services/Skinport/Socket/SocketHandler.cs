@@ -46,11 +46,13 @@ namespace SkinSniper.Services.Skinport.Socket
 
                 foreach (var item in data.Sales)
                 {
-                    ItemReceived?.Invoke(this, item);
+                    Task.Run(() =>
+                    {
+                        ItemReceived?.Invoke(this, item);
+                    });
                 }
             } catch (Exception e)
             {
-                /* failed to parse SaleFeed data, maybe missing float? */
                 Trace.WriteLine(e);
             }
         }

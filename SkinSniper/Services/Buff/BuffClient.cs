@@ -1,12 +1,12 @@
-﻿using Newtonsoft.Json;
-using SkinSniper.Services.Buff.Entities;
+﻿using SkinSniper.Database;
+using SkinSniper.Database.Entities;
 using System.Diagnostics;
 
 namespace SkinSniper.Services.Buff
 {
     internal class BuffClient
     {
-        private Dictionary<string, Item> _items = new();
+        private readonly DatabaseClient _database;
         private Dictionary<string, float[][]> _margins = new()
         {
             { "Knife", new []
@@ -42,54 +42,66 @@ namespace SkinSniper.Services.Buff
                 }
             }
         };
+        private Dictionary<Tuple<string, string>, decimal> _prices = new();
 
-        public BuffClient()
+        public BuffClient(DatabaseClient database)
         {
-            using (StreamReader reader = new StreamReader("buff.json"))
-            {
-                var items = JsonConvert.DeserializeObject<Dictionary<string, Item>>(reader.ReadToEnd());
+            _database = database;
 
-                if (items != null)
+            // iterate over all items to calculate prices
+            foreach (var item in DatabaseItem.GetItems(_database))
+            {
+                // find all possible styles
+                var styles = DatabaseListing.GetListings(_database, item)
+                    .GroupBy(listing => listing.Style)
+                    .Select(group => group.First())
+                    .ToList();
+
+                // calculate price for each style
+                foreach (var style in styles)
                 {
-                    _items = items;
-                    Trace.WriteLine($"(Buff): Loaded {_items.Count} items!");
-                }
-                else
-                {
-                    Trace.WriteLine("(Buff): Unable to load the buff data!");
+                    // get listings and records
+                    var listings = DatabaseListing.GetListings(_database, item)
+                        .Where(l => l.Style == style.Style)
+                        .OrderBy(l => l.Price);
+
+                    var records = DatabaseRecord.GetRecords(_database, item)
+                        .Where(l => l.Style == style.Style)
+                        .OrderBy(l => l.Price);
+
+                    // calculate price
+                    var listingPrice = listings.Count() > 0 ? listings.First().Price * 0.11m : 0.0m;
+                    var recordPrice = records.Count() > 0 ? records.First().Price * 0.11m : 0.0m;
+
+                    // select lowest price
+                    if (listingPrice > 0.0m && recordPrice > 0.0m)
+                    {
+                        _prices.Add(new (item.Name, style.Style), Math.Min(listingPrice, recordPrice));
+                    }
+                    else
+                    {
+                        _prices.Add(new(item.Name, style.Style), listingPrice > 0.0m ? listingPrice : recordPrice);
+                    }
                 }
             }
+
+            // woo we did it
+            Trace.WriteLine($"(Buff): Processed {_prices.Count} prices!");
         }
 
-        public Item? GetItem(string name)
+        public decimal GetPrice(string category, string name, double? _float, string style = "default")
         {
+            // get item from data set
             try
             {
-                return _items[name];
+                return _prices[new(name, style)];
             }
-            catch
+            catch 
             {
-                return null;
+                return 0.0m;
             }
-        }
 
-        public float GetPrice(string category, string name, double? _float, string style)
-        {
-            // ignore items with no floats
-            if (_float == null) return 0;
-
-            // ignore vanilla knifes
-            if (!name.Contains("|"))
-                return 0;
-
-            // get item from dataset
-            var item = GetItem(name);
-            if (item == null) return 0;
-
-            // convert skinport to buff (version)
-            if (style.Contains("Phase"))
-                style = "P" + style.Last().ToString();
-
+            /*
             // calculate margin
             var margin = CalculateMargin(category, _float);
             if (margin == null) return 0;
@@ -131,6 +143,7 @@ namespace SkinSniper.Services.Buff
             {
                 return listingPrice > 0.0f ? listingPrice : recordPrice;
             }
+            */
         }
 
         public float[]? CalculateMargin(string category, double? _float)
