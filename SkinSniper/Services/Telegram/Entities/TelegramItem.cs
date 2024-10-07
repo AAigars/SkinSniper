@@ -4,9 +4,9 @@ namespace SkinSniper.Services.Telegram.Entities
 {
     internal class TelegramItem
     {
-        public decimal BuffPrice { get; set; }
-        public decimal ListingPrice { get; set; }
-        public decimal Profit { get; set; }
+        public double BuffPrice { get; set; }
+        public double ListingPrice { get; set; }
+        public double Profit { get; set; }
         public bool Sniped { get; set; }
         public long TimeTaken { get; set; }
     }

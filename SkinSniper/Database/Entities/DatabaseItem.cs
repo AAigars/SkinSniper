@@ -1,5 +1,5 @@
 ﻿using DbDataReaderMapper;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 
 namespace SkinSniper.Database.Entities
 {
@@ -30,9 +30,9 @@ namespace SkinSniper.Database.Entities
         public static void UpdateItem(DatabaseClient database, DatabaseItemModel item)
         {
             // update item
-            var update = new SQLiteCommand("UPDATE items SET updated_at = ? WHERE id = ?", database.GetConnection());
-            update.Parameters.Add(new SQLiteParameter("updated_at", DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
-            update.Parameters.Add(new SQLiteParameter("id", item.Id));
+            var update = new SqliteCommand("UPDATE items SET updated_at = ? WHERE id = ?", database.GetConnection());
+            update.Parameters.Add(new SqliteParameter("updated_at", DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
+            update.Parameters.Add(new SqliteParameter("id", item.Id));
 
             // attempt to update
             database.ExecuteMappedQuery<DatabaseListingModel>(update);
@@ -41,9 +41,9 @@ namespace SkinSniper.Database.Entities
         public static DatabaseItemModel? AddItem(DatabaseClient database, int id, string name)
         {
             // setup prepared statement
-            var query = new SQLiteCommand("INSERT OR IGNORE INTO items (id, name) VALUES (?, ?) RETURNING *", database.GetConnection());
-            query.Parameters.Add(new SQLiteParameter("id", id));
-            query.Parameters.Add(new SQLiteParameter("name", name));
+            var query = new SqliteCommand("INSERT OR IGNORE INTO items (id, name) VALUES (?, ?) RETURNING *", database.GetConnection());
+            query.Parameters.Add(new SqliteParameter("id", id));
+            query.Parameters.Add(new SqliteParameter("name", name));
 
             // attempt to insert
             return database.ExecuteMappedQuery<DatabaseItemModel>(query).FirstOrDefault();
@@ -54,7 +54,7 @@ namespace SkinSniper.Database.Entities
             if (_items.Count == 0)
             {
                 // setup prepared statement
-                var query = new SQLiteCommand("SELECT * FROM items", database.GetConnection());
+                var query = new SqliteCommand("SELECT * FROM items", database.GetConnection());
 
                 // execute and return
                 _items.AddRange(database.ExecuteMappedQuery<DatabaseItemModel>(query));
@@ -68,7 +68,7 @@ namespace SkinSniper.Database.Entities
             if (_items.Count == 0)
             {
                 // setup prepared statement
-                var query = new SQLiteCommand("SELECT * FROM items", database.GetConnection());
+                var query = new SqliteCommand("SELECT * FROM items", database.GetConnection());
 
                 // execute and return
                 _items.AddRange(database.ExecuteMappedQuery<DatabaseItemModel>(query));

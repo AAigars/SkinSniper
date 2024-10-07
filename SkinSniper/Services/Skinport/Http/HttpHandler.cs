@@ -1,77 +1,97 @@
 ﻿using System.Diagnostics;
-using System.Net;
 using System.Net.Http.Json;
-using System.Net.Security;
+using System.Text;
+using CycleTLS;
+using CycleTLS.Interfaces;
+using CycleTLS.Models;
+using Newtonsoft.Json;
 
 namespace SkinSniper.Services.Skinport.Http
 {
     internal class HttpHandler
     {
-        private readonly CookieContainer _cookieContainer;
-        private readonly HttpClient _client;
-        public string? _csrf;
+        private readonly ICycleClient _cycleClient;
+        private readonly HttpClient _httpClient;
+
+        private readonly string _baseUrl;
+        private readonly string _userAgent;
+        private readonly string _cookie;
+        
+        private readonly string _csrf;
 
         public HttpHandler(string baseUrl, string userAgent, string cookie)
         {
-            _cookieContainer = new CookieContainer();
-
-            var socketHandler = new SocketsHttpHandler()
+            _baseUrl = baseUrl;
+            _userAgent = userAgent;
+            _cookie = cookie;
+            
+            // setup httpclient
+            _httpClient = new HttpClient();
+            
+            // setup cycletls
+            var cycleServerOptions = new CycleServerOptions()
             {
-                UseProxy = true,
-                Proxy = new WebProxy(new Uri("http://localhost:8888")),
-                CookieContainer = _cookieContainer
+                Path = "/Users/aigars.aldermanis/RiderProjects/SkinSniper/SkinSniperServer/node_modules/cycletls/dist/index-mac-arm64",
+                Port = 9112
             };
 
-            // instantiate client
-            _client = new HttpClient(socketHandler)
-            {
-                BaseAddress = new Uri($"{baseUrl}api/")
-            };
-
-            // set default headers
-            _client.DefaultRequestHeaders.Add("Referer", baseUrl + "market");
-            _client.DefaultRequestHeaders.Add("User-Agent", userAgent);
-
-            // add cookies
-            // - need to set specific domain, otherwise skinport will send Set-Cookie header which
-            // - slows down the request by a lot.
-            foreach (var entry in cookie.TrimEnd(';').Split(";"))
-            {
-                var split = entry.Split("=");
-                _cookieContainer.Add(new Cookie(split[0], split[1], "", ".skinport.com"));
-            }
+            ICycleServer cycleServer = new CycleServer(cycleServerOptions);
+            cycleServer.Start();
+            
+            _cycleClient = new CycleClient(new Uri($"ws://127.0.0.1:{cycleServerOptions.Port}"));
 
             // fetch csrf
             _csrf = GetData().Result?.Csrf;
             Trace.WriteLine($"(Http): {_csrf}");
         }
 
-        public async Task<Entities.Profile?> GetProfile()
+        private Task<CycleResponse> SendRequestAsync(string method, string route, string? data = null)
         {
-            var response = await _client.GetAsync("user/profile");
-            return await response.Content.ReadFromJsonAsync<Entities.Profile>();
+            var headers = new Dictionary<string, string>()
+            {
+                ["Accept"] = "application/json, text/plain, */*",
+                ["Accept-Encoding"] = "gzip, deflate, br, zstd",
+                ["Accept-Language"] = "en-GB,en-US;q=0.9,en;q=0.8",
+                ["Referer"] = _baseUrl + "/market",
+                ["Cookie"] = _cookie,
+            };
+            
+            if (data != null) headers.Add("Content-Type", "application/x-www-form-urlencoded");
+            
+            var options = new CycleRequestOptions()
+            {
+                Method = method,
+                Headers = headers,
+                UserAgent = _userAgent, 
+                //Proxy = "http://username:password@127.0.0.1:8080",
+                Url = _baseUrl + "/api" + route,
+                Ja3 = "772,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,65281-43-0-17513-65037-27-18-10-5-45-11-16-13-51-35-23,25497-29-23-24,0"
+            };
+
+            if (data != null) options.Body = data;
+            
+            return _cycleClient.SendAsync(options);
         }
 
-        public async Task<Entities.Data?> GetData()
+        private async Task<Entities.Data?> GetData()
         {
-            var response = await _client.GetAsync("data?v=0970ccc23937155d5714&t=1726230019");
-            var data = await response.Content.ReadFromJsonAsync<Entities.Data>();
+            var response = await SendRequestAsync("get", "/data?v=0970ccc23937155d5714&t=1726230019");
+            var data = JsonConvert.DeserializeObject<Entities.Data>(response.Body);
 
             return data;
         }
 
         public async Task<Entities.Order?> CreateOrder(Entities.Item item, string token)
         {
-            var data = new FormUrlEncodedContent(new[]
-            {
+            var data = new FormUrlEncodedContent([
                 new KeyValuePair<string, string>("sales[0]", item.SaleId.ToString()),
                 new KeyValuePair<string, string>("cf-turnstile-response", token),
-                new KeyValuePair<string, string>("_csrf", _csrf),
-            });
+                new KeyValuePair<string, string>("_csrf", _csrf)
+            ]);
 
             var watch = Stopwatch.StartNew();
-            var response = await _client.PostAsync("checkout/create-order", data);
-            var json = await response.Content.ReadFromJsonAsync<Entities.Order>();
+            var response = await SendRequestAsync("post", "/checkout/create-order", await data.ReadAsStringAsync());
+            var json = JsonConvert.DeserializeObject<Entities.Order>(response.Body);
             watch.Stop();
 
             Trace.WriteLine($"(Checkout): {item.SaleId} = {json.Success} = {watch.ElapsedMilliseconds}");
@@ -80,20 +100,52 @@ namespace SkinSniper.Services.Skinport.Http
 
         public async Task<Entities.Basket?> AddToBasket(Entities.Item item)
         {
-            var data = new FormUrlEncodedContent(new[]
-            {
+            var data = new FormUrlEncodedContent([
                 new KeyValuePair<string, string>("sales[0][id]", item.SaleId.ToString()),
                 new KeyValuePair<string, string>("sales[0][price]", item.SalePrice.ToString()),
-                new KeyValuePair<string, string>("_csrf", _csrf),
-            });
+                new KeyValuePair<string, string>("_csrf", _csrf)
+            ]);
 
             var watch = Stopwatch.StartNew();
-            var response = await _client.PostAsync("cart/add", data);
-            var json = await response.Content.ReadFromJsonAsync<Entities.Basket>();
+            var response = await SendRequestAsync("post", "/cart/add", await  data.ReadAsStringAsync());
+            var json = JsonConvert.DeserializeObject<Entities.Basket>(response.Body);
             watch.Stop();
 
             Trace.WriteLine($"(Basket): {item.SaleId} = {json.Success} = {watch.ElapsedMilliseconds}");
             return json;
+        }
+
+        private class TurnstileRequest
+        {
+            public string mode;
+            public string url;
+            public string siteKey;
+            public string action;
+            public string cData;
+        }
+
+        public class TurnstileResponse
+        {
+            public string token { get; set; }
+            public int code { get; set; }
+        }
+
+        public async Task<TurnstileResponse> GetTurnstileToken(int saleId)
+        {
+            var json = JsonConvert.SerializeObject(new TurnstileRequest()
+            {
+                mode = "turnstile-min",
+                url = _baseUrl + "/",
+                siteKey = "0x4AAAAAAADTS9QyreZcUSn1",
+                action = "checkout",
+                cData = (saleId % 1e3).ToString()
+            });
+            
+            var response = await _httpClient.PostAsync(
+                "http://localhost:3000/cf-clearance-scraper", 
+                new StringContent(json, Encoding.UTF8, "application/json"));
+            
+            return await response.Content.ReadFromJsonAsync<TurnstileResponse>();
         }
     }
 }

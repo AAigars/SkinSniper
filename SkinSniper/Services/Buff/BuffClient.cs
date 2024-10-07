@@ -7,42 +7,44 @@ namespace SkinSniper.Services.Buff
     internal class BuffClient
     {
         private readonly DatabaseClient _database;
+
         private Dictionary<string, float[][]> _margins = new()
         {
-            { "Knife", new []
-                {
-                    new[] { 0.0f, 0.07f },
-                    new[] { 0.07f, 0.15f },
-                    new[] { 0.15f, 0.18f },
-                    new[] { 0.18f, 0.24f },
-                    new[] { 0.24f, 0.27f },
-                    new[] { 0.27f, 0.38f },
-                    new[] { 0.38f, 0.45f },
-                    new[] { 0.45f, 0.63f },
-                    new[] { 0.63f, 1.0f },
-                }
+            {
+                "Knife", [
+                    [0.0f, 0.07f],
+                    [0.07f, 0.15f],
+                    [0.15f, 0.18f],
+                    [0.18f, 0.24f],
+                    [0.24f, 0.27f],
+                    [0.27f, 0.38f],
+                    [0.38f, 0.45f],
+                    [0.45f, 0.63f],
+                    [0.63f, 1.0f]
+                ]
             },
-            { "Gloves", new []
-                {
-                    new[] { 0.0f, 0.07f },
-                    new[] { 0.07f, 0.08f },
-                    new[] { 0.08f, 0.09f },
-                    new[] { 0.09f, 0.1f },
-                    new[] { 0.1f, 0.13f },
-                    new[] { 0.13f, 0.15f },
-                    new[] { 0.15f, 0.18f },
-                    new[] { 0.18f, 0.21f },
-                    new[] { 0.21f, 0.24f },
-                    new[] { 0.24f, 0.27f },
-                    new[] { 0.27f, 0.38f },
-                    new[] { 0.38f, 0.41f },
-                    new[] { 0.41f, 0.45f },
-                    new[] { 0.45f, 0.63f },
-                    new[] { 0.63f, 1.0f },
-                }
+            {
+                "Gloves", [
+                    [0.0f, 0.07f],
+                    [0.07f, 0.08f],
+                    [0.08f, 0.09f],
+                    [0.09f, 0.1f],
+                    [0.1f, 0.13f],
+                    [0.13f, 0.15f],
+                    [0.15f, 0.18f],
+                    [0.18f, 0.21f],
+                    [0.21f, 0.24f],
+                    [0.24f, 0.27f],
+                    [0.27f, 0.38f],
+                    [0.38f, 0.41f],
+                    [0.41f, 0.45f],
+                    [0.45f, 0.63f],
+                    [0.63f, 1.0f]
+                ]
             }
         };
-        private Dictionary<Tuple<string, string>, decimal> _prices = new();
+
+        private Dictionary<Tuple<string, string>, double> _prices = new();
 
         public BuffClient(DatabaseClient database)
         {
@@ -70,17 +72,17 @@ namespace SkinSniper.Services.Buff
                         .OrderBy(l => l.Price);
 
                     // calculate price
-                    var listingPrice = listings.Count() > 0 ? listings.First().Price * 0.11m : 0.0m;
-                    var recordPrice = records.Count() > 0 ? records.First().Price * 0.11m : 0.0m;
+                    var listingPrice = listings.Count() > 0 ? listings.First().Price * 0.11 : 0.0;
+                    var recordPrice = records.Count() > 0 ? records.First().Price * 0.11 : 0.0;
 
                     // select lowest price
-                    if (listingPrice > 0.0m && recordPrice > 0.0m)
+                    if (listingPrice > 0.0 && recordPrice > 0.0)
                     {
-                        _prices.Add(new (item.Name, style.Style), Math.Min(listingPrice, recordPrice));
+                        _prices.Add(new(item.Name, style.Style), Math.Min(listingPrice, recordPrice));
                     }
                     else
                     {
-                        _prices.Add(new(item.Name, style.Style), listingPrice > 0.0m ? listingPrice : recordPrice);
+                        _prices.Add(new(item.Name, style.Style), listingPrice > 0.0 ? listingPrice : recordPrice);
                     }
                 }
             }
@@ -89,16 +91,16 @@ namespace SkinSniper.Services.Buff
             Trace.WriteLine($"(Buff): Processed {_prices.Count} prices!");
         }
 
-        public decimal GetPrice(string category, string name, double? _float, string style = "default")
+        public double GetPrice(string category, string name, double? _float, string style = "default")
         {
             // get item from data set
             try
             {
                 return _prices[new(name, style)];
             }
-            catch 
+            catch
             {
-                return 0.0m;
+                return 0.0;
             }
 
             /*
@@ -138,7 +140,7 @@ namespace SkinSniper.Services.Buff
             if (listingPrice > 0.0f && recordPrice > 0.0f)
             {
                 return MathF.Min(listingPrice, recordPrice);
-            } 
+            }
             else
             {
                 return listingPrice > 0.0f ? listingPrice : recordPrice;
@@ -150,7 +152,7 @@ namespace SkinSniper.Services.Buff
         {
             // get margins
             var margins = _margins[category];
-            
+
             // iterate margins and find the upper and lower
             foreach (var margin in margins)
             {

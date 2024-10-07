@@ -1,11 +1,12 @@
 ﻿using DbDataReaderMapper;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
+using SkinSniper.Database.Entities;
 
 namespace SkinSniper.Database
 {
     public class DatabaseClient
     {
-        private SQLiteConnection _connection;
+        private SqliteConnection _connection;
 
         /// <summary>
         /// Establishes a connection with the sql database
@@ -13,13 +14,13 @@ namespace SkinSniper.Database
         public DatabaseClient()
         {
             // construct connection string
-            var builder = new SQLiteConnectionStringBuilder()
+            var builder = new SqliteConnectionStringBuilder()
             {
                 DataSource = "data.db"
             };
 
             // instantiate connection
-            _connection = new SQLiteConnection(builder.ConnectionString);
+            _connection = new SqliteConnection(builder.ConnectionString);
 
             // establish connection
             _connection.Open();
@@ -29,7 +30,7 @@ namespace SkinSniper.Database
         /// Retrieves the sql connection
         /// </summary>
         /// <returns>The sql connection</returns>
-        public SQLiteConnection GetConnection()
+        public SqliteConnection GetConnection()
         {
             return _connection;
         }
@@ -40,11 +41,11 @@ namespace SkinSniper.Database
         /// <typeparam name="T">The class of the object</typeparam>
         /// <param name="command">The sql command</param>
         /// <returns></returns>
-        public T[] ExecuteMappedQuery<T>(SQLiteCommand command) where T : class
+        public T[] ExecuteMappedQuery<T>(SqliteCommand command) where T : class
         {
             using (command)
             {
-                using (SQLiteDataReader reader = command.ExecuteReader())
+                using (SqliteDataReader reader = command.ExecuteReader())
                 {
                     var list = new List<T>();
 
@@ -66,7 +67,7 @@ namespace SkinSniper.Database
         /// <returns></returns>
         public T[] ExecuteMappedQuery<T>(string query) where T : class
         {
-            return ExecuteMappedQuery<T>(new SQLiteCommand(query, _connection));
+            return ExecuteMappedQuery<T>(new SqliteCommand(query, _connection));
         }
 
         /// <summary>
@@ -75,11 +76,11 @@ namespace SkinSniper.Database
         /// <typeparam name="T">The template type</typeparam>
         /// <param name="command">The sql command</param>
         /// <returns></returns>
-        public T[] ExecuteQuery<T>(SQLiteCommand command)
+        public T[] ExecuteQuery<T>(SqliteCommand command)
         {
             using (command)
             {
-                using (SQLiteDataReader reader = command.ExecuteReader())
+                using (SqliteDataReader reader = command.ExecuteReader())
                 {
                     var list = new List<T>();
 
@@ -101,7 +102,7 @@ namespace SkinSniper.Database
         /// <returns></returns>
         public T[] ExecuteQuery<T>(string query)
         {
-            return ExecuteQuery<T>(new SQLiteCommand(query, _connection));
+            return ExecuteQuery<T>(new SqliteCommand(query, _connection));
         }
     }
 }

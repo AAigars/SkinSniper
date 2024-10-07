@@ -5,56 +5,12 @@ using SkinSniper.Services.Buff.Entities;
 using System.Diagnostics;
 using System.Net.Http.Json;
 
-
 namespace SkinSniper.Services.Buff
 {
     internal class BuffScraper
     {
         private readonly HttpClient _client;
         private readonly DatabaseClient _database;
-        private Dictionary<string, float[][]> _margins = new()
-        {
-            { "Knife", new []
-                {
-                    new[] { 0.0f, 0.07f },
-                    new[] { 0.07f, 0.15f },
-                    new[] { 0.15f, 0.18f },
-                    new[] { 0.18f, 0.24f },
-                    new[] { 0.24f, 0.27f },
-                    new[] { 0.27f, 0.38f },
-                    new[] { 0.38f, 0.45f },
-                    new[] { 0.45f, 0.63f },
-                    new[] { 0.63f, 1.0f },
-                }
-            },
-            { "Gloves", new []
-                {
-                    new[] { 0.0f, 0.07f },
-                    new[] { 0.07f, 0.08f },
-                    new[] { 0.08f, 0.09f },
-                    new[] { 0.09f, 0.1f },
-                    new[] { 0.1f, 0.13f },
-                    new[] { 0.13f, 0.15f },
-                    new[] { 0.15f, 0.18f },
-                    new[] { 0.18f, 0.21f },
-                    new[] { 0.21f, 0.24f },
-                    new[] { 0.24f, 0.27f },
-                    new[] { 0.27f, 0.38f },
-                    new[] { 0.38f, 0.41f },
-                    new[] { 0.41f, 0.45f },
-                    new[] { 0.45f, 0.63f },
-                    new[] { 0.63f, 1.0f },
-                }
-            }
-        };
-        private Dictionary<string, float[]> _ranges = new()
-        {
-            { "Factory New", new[] { 0.0f, 0.07f } },
-            { "Minimal Wear", new[] { 0.07f, 0.15f } },
-            { "Field-Tested", new[] { 0.15f, 0.38f } },
-            { "Well-Worn", new[] { 0.38f, 0.45f } },
-            { "Battle-Scarred", new[] { 0.45f, 1.0f } }
-        };
 
         public BuffScraper(DatabaseClient database)
         {

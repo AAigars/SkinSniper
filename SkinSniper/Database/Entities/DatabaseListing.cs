@@ -1,5 +1,5 @@
 ﻿using DbDataReaderMapper;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 
 namespace SkinSniper.Database.Entities
 {
@@ -12,7 +12,7 @@ namespace SkinSniper.Database.Entities
         public long ItemId { get; set; }
 
         [DbColumn("price")]
-        public decimal Price { get; set; }
+        public double Price { get; set; }
 
         [DbColumn("float")]
         public double Float { get; set; }
@@ -31,13 +31,13 @@ namespace SkinSniper.Database.Entities
         public static DatabaseListingModel? AddListing(DatabaseClient database, string id, long itemId, decimal price, double _float, string style, long updatedAt)
         {
             // setup prepared statement
-            var insert = new SQLiteCommand("INSERT OR IGNORE INTO listings (id, item_id, price, float, style, updated_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING *", database.GetConnection());
-            insert.Parameters.Add(new SQLiteParameter("id", id));
-            insert.Parameters.Add(new SQLiteParameter("item_id", itemId));
-            insert.Parameters.Add(new SQLiteParameter("price", price));
-            insert.Parameters.Add(new SQLiteParameter("float", _float));
-            insert.Parameters.Add(new SQLiteParameter("style", style));
-            insert.Parameters.Add(new SQLiteParameter("updated_at", updatedAt));
+            var insert = new SqliteCommand("INSERT OR IGNORE INTO listings (id, item_id, price, float, style, updated_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING *", database.GetConnection());
+            insert.Parameters.Add(new SqliteParameter("id", id));
+            insert.Parameters.Add(new SqliteParameter("item_id", itemId));
+            insert.Parameters.Add(new SqliteParameter("price", price));
+            insert.Parameters.Add(new SqliteParameter("float", _float));
+            insert.Parameters.Add(new SqliteParameter("style", style));
+            insert.Parameters.Add(new SqliteParameter("updated_at", updatedAt));
 
             // attempt to insert
             return database.ExecuteMappedQuery<DatabaseListingModel>(insert).FirstOrDefault();
@@ -48,7 +48,7 @@ namespace SkinSniper.Database.Entities
             if (_listings.Count == 0)
             {             
                 // setup statement
-                var query = new SQLiteCommand("SELECT * FROM listings", database.GetConnection());
+                var query = new SqliteCommand("SELECT * FROM listings", database.GetConnection());
 
                 // execute and return
                 _listings.AddRange(database.ExecuteMappedQuery<DatabaseListingModel>(query));

@@ -8,7 +8,7 @@ namespace SkinSniper.Services.Skinport.Http.Entities
         {
             [JsonPropertyName("name")]
             public string Name { get; set; }
-            public decimal? Value { get; set; }
+            public double? Value { get; set; }
         }
 
         [JsonPropertyName("saleId")]
