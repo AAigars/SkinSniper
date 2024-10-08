@@ -16,6 +16,9 @@ namespace SkinSniper.Services.Skinport.Http.Entities
 
         [JsonPropertyName("salePrice")]
         public int SalePrice { get; set; }
+        
+        [JsonPropertyName("saleStatus")]
+        public string SaleStatus { get; set; }
 
         [JsonPropertyName("marketName")]
         public string MarketName { get; set; }

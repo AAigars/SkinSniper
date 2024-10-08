@@ -57,11 +57,12 @@ namespace SkinSniper.Services.Skinport
             var watch = Stopwatch.StartNew();
             
             var basket = _httpHandler.AddToBasket(item);
+            item.SaleId = 49935369;
             var token = _httpHandler.GetTurnstileToken(item.SaleId);
-            await Task.WhenAll(basket, token);
+            await Task.WhenAll(basket, token);  
             
-            var minTime = TimeSpan.FromMilliseconds(3000);
-            if (watch.Elapsed < minTime) Thread.Sleep(minTime - watch.Elapsed);
+            //var minTime = TimeSpan.FromMilliseconds(2700);
+            //if (watch.Elapsed < minTime) Thread.Sleep(minTime - watch.Elapsed);
             
             var order = await _httpHandler.CreateOrder(item, token.Result.token);
             await client.SendTextMessageAsync(message.Chat.Id, 
@@ -90,13 +91,13 @@ namespace SkinSniper.Services.Skinport
             }
 
             // calculate profits
-            var profit = buffPrice - skinportPrice; //((buffPrice * 97.5m) / 100m) - skinportPrice;
-            var threshold = skinportPrice * 0.15;
+            var profit = buffPrice - skinportPrice;
+            var threshold = skinportPrice * 0.05;
 
             // check threshold
             if (profit > threshold)
             {
-                if (ConfigHandler.Get().Status)
+                /*if (ConfigHandler.Get().Status)
                 {
                     var watch = Stopwatch.StartNew();
             
@@ -104,13 +105,13 @@ namespace SkinSniper.Services.Skinport
                     var token = _httpHandler.GetTurnstileToken(item.SaleId);
                     await Task.WhenAll(basket, token);
             
-                    var minTime = TimeSpan.FromMilliseconds(3000);
+                    var minTime = TimeSpan.FromMilliseconds(2700);
                     if (watch.Elapsed < minTime) Thread.Sleep(minTime - watch.Elapsed);
             
                     var order = await _httpHandler.CreateOrder(item, token.Result.token);
                     if (basket.Result is { Success: true })
                     {
-                        if (order != null && order.Success)
+                        if (order is { Success: true })
                         {
                             sniped = true;
                             Trace.WriteLine($"(Sniped): {watch.ElapsedMilliseconds}ms");
@@ -124,6 +125,15 @@ namespace SkinSniper.Services.Skinport
                     {
                         Trace.WriteLine($"(Failed): {basket.Result.Message} = {watch.ElapsedMilliseconds}ms");
                     }
+                }*/
+
+                var isListed = true;
+                while (isListed)
+                {
+                    var itemData = await _httpHandler.GetItem(item);
+                    isListed = itemData?.SaleStatus == "listed";
+                    
+                    Trace.WriteLine($"[{itemData?.SaleStatus}]: {itemData?.MarketName} ({itemData?.SaleId}) - {globalWatch.ElapsedMilliseconds}ms");
                 }
             }
 

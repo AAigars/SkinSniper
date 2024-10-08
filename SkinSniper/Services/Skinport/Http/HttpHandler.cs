@@ -1,10 +1,12 @@
 ﻿using System.Diagnostics;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using CycleTLS;
 using CycleTLS.Interfaces;
 using CycleTLS.Models;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace SkinSniper.Services.Skinport.Http
 {
@@ -12,6 +14,7 @@ namespace SkinSniper.Services.Skinport.Http
     {
         private readonly ICycleClient _cycleClient;
         private readonly HttpClient _httpClient;
+        private CookieContainer _cookies = new();
 
         private readonly string _baseUrl;
         private readonly string _userAgent;
@@ -25,13 +28,16 @@ namespace SkinSniper.Services.Skinport.Http
             _userAgent = userAgent;
             _cookie = cookie;
             
+            // parse cookies    
+            _cookies.SetCookies(new Uri(baseUrl), cookie);
+            
             // setup httpclient
             _httpClient = new HttpClient();
             
             // setup cycletls
             var cycleServerOptions = new CycleServerOptions()
             {
-                Path = "/Users/aigars.aldermanis/RiderProjects/SkinSniper/SkinSniperServer/node_modules/cycletls/dist/index-mac-arm64",
+                Path = "/Users/aigars.aldermanis/RiderProjects/SkinSniper/cf-clearance-scraper/node_modules/cycletls/dist/index-mac-arm64",
                 Port = 9112
             };
 
@@ -45,7 +51,7 @@ namespace SkinSniper.Services.Skinport.Http
             Trace.WriteLine($"(Http): {_csrf}");
         }
 
-        private Task<CycleResponse> SendRequestAsync(string method, string route, string? data = null)
+        private async Task<CycleResponse> SendRequestAsync(string method, string route, string? data = null)
         {
             var headers = new Dictionary<string, string>()
             {
@@ -53,15 +59,28 @@ namespace SkinSniper.Services.Skinport.Http
                 ["Accept-Encoding"] = "gzip, deflate, br, zstd",
                 ["Accept-Language"] = "en-GB,en-US;q=0.9,en;q=0.8",
                 ["Referer"] = _baseUrl + "/market",
-                ["Cookie"] = _cookie,
+                //["Cookie"] = _cookies.GetCookieHeader(new Uri(_baseUrl)),
             };
             
             if (data != null) headers.Add("Content-Type", "application/x-www-form-urlencoded");
+
+            var cookies = new List<CycleRequestCookie>();
+            foreach (var cookie in _cookies.GetCookies(new Uri(_baseUrl)).ToList())
+            {
+                cookies.Add(new CycleRequestCookie()
+                {
+                    Name = cookie.Name.StartsWith("/") ? cookie.Name.Substring(1) : cookie.Name,
+                    Value = cookie.Value,
+                    Domain = ".skinport.com",
+                    Path = "/"
+                });
+            }
             
             var options = new CycleRequestOptions()
             {
                 Method = method,
                 Headers = headers,
+                Cookies = cookies,
                 UserAgent = _userAgent, 
                 //Proxy = "http://username:password@127.0.0.1:8080",
                 Url = _baseUrl + "/api" + route,
@@ -70,7 +89,14 @@ namespace SkinSniper.Services.Skinport.Http
 
             if (data != null) options.Body = data;
             
-            return _cycleClient.SendAsync(options);
+            var response = await _cycleClient.SendAsync(options);
+            if (response.Headers.TryGetValue("Set-Cookie", out var header))
+            {
+                Console.WriteLine("Set-Cookie:" + header);
+                _cookies.SetCookies(new Uri(_baseUrl), header);
+            }
+            
+            return response;
         }
 
         private async Task<Entities.Data?> GetData()
@@ -113,6 +139,13 @@ namespace SkinSniper.Services.Skinport.Http
 
             Trace.WriteLine($"(Basket): {item.SaleId} = {json.Success} = {watch.ElapsedMilliseconds}");
             return json;
+        }
+        
+        public async Task<Entities.Item?> GetItem(Entities.Item item)
+        {
+            var response = await SendRequestAsync("get", $"/item?appid=730&url={item.Url}&id={item.SaleId}");
+            dynamic json = JObject.Parse(response.Body);
+            return (json.data.item as JObject).ToObject<Entities.Item>();
         }
 
         private class TurnstileRequest

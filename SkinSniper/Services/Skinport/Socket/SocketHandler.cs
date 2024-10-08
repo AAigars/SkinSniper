@@ -43,6 +43,7 @@ namespace SkinSniper.Services.Skinport.Socket
             try
             {
                 var data = response.GetValue<SaleFeed>();
+                if (data.EventType != "listed") return;
 
                 foreach (var item in data.Sales)
                 {
@@ -51,7 +52,8 @@ namespace SkinSniper.Services.Skinport.Socket
                         ItemReceived?.Invoke(this, item);
                     });
                 }
-            } catch (Exception e)
+            } 
+            catch (Exception e)
             {
                 Trace.WriteLine(e);
             }
